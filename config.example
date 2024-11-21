@@ -1,0 +1,3 @@
+verbosity: 5
+logfile: stdout
+gha_token: <TOKEN>
