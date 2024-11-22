@@ -11,6 +11,9 @@ import json
 import smtplib
 
 ORG = "apache"
+PUBLIC_INTERFACE = "infrastructure-actions"
+APPROVED_PATTERNS_FILEPATH = "approved_patterns.yml"
+
 github_timewait = 60
 
 class Log:
@@ -53,7 +56,6 @@ class WhitelistUpdater:
         self.mail_map = {} 
         raw_map = self.s.get("https://whimsy.apache.org/public/committee-info.json").json()['committees']
         [ self.mail_map.update({ item: raw_map[item]['mail_list']}) for item in raw_map ]
-#        self.s.headers.update({"Authorization": "token %s" % self.config["gha_token"]})
         self.s.headers.update(
             {
                 "Accept": "application/vnd.github+json",
@@ -79,15 +81,16 @@ class WhitelistUpdater:
             print("Updated.")
 
     def handler(self, data):
-        if "commit" in data:
+        if "commit" in data and data["commit"]["project"] == PUBLIC_INTERFACE:
             # Check if modified files are in path
-            p = re.compile(r"^approved_patterns.yml$")
+            p = re.compile(r"^{APPROVED_PATTERNS_FILEPATH}$")
             results = [w for w in data["commit"].get("files", []) if p.match(w)]
             print(results)
             if len(results) > 0:
                 self.logger.log.debug("Updated whitelist detected")
 
-                # Do the update thing here
+                # get the new yaml file contents with a rawusercontent translation
+                # trigger self.update with the contents
                 self.logger.log.debug("Nothing doin!! got no code ;)")
         else:
              self.logger.log.info("Heartbeat Signal Detected")
