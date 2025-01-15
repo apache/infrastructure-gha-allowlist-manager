@@ -11,7 +11,7 @@ import json
 import smtplib
 
 ORG = "apache"
-PUBLIC_INTERFACE = "infrastructure-actions"
+PUBLIC_INTERFACE = "infrastructure-gha-whitelist-manager"
 APPROVED_PATTERNS_FILEPATH = "approved_patterns.yml"
 
 github_timewait = 60
@@ -51,11 +51,16 @@ class WhitelistUpdater:
     """ Scans pubsub for changes to a defined whitelist, and Handles the API requests to GitHub """
     def __init__(self, config):
         self.config = config
-        self.ghurl = f"https://api.github.com/orgs/{ORG}/actions/permissions/selected-actions"
+        self.action_url = f"https://api.github.com/orgs/{ORG}/actions/permissions/selected-actions"
+        self.raw_url = f"https://rawusercontent.github.com/{ORG}/{PUBLIC_INTERFACE}/refs/heads/main/{APPROVED_PATTERNS_FILEPATH}"
         self.s = requests.Session()
+
+        # Fetch the mail map
         self.mail_map = {} 
         raw_map = self.s.get("https://whimsy.apache.org/public/committee-info.json").json()['committees']
         [ self.mail_map.update({ item: raw_map[item]['mail_list']}) for item in raw_map ]
+        
+        # Add the GitHub Headers
         self.s.headers.update(
             {
                 "Accept": "application/vnd.github+json",
@@ -63,8 +68,10 @@ class WhitelistUpdater:
                 "X-GitHub-Api-Version": "2022-11-28",
             }
         )
-        self.pubsub = "https://pubsub.apache.org:2070/git/commit"
+
+        self.pubsub = f"https://pubsub.apache.org:2070/git/{PUBLIC_INTERFACE}"
         self.logger = Log(config)
+
     def scan(self):
         self.logger.log.info("Connecting to %s" % self.pubsub)
         asfpy.pubsub.listen_forever(self.handler, self.pubsub, raw=True)
@@ -76,7 +83,7 @@ class WhitelistUpdater:
             "verified_allowed": False,
             "patterns_allowed": wlist,
         }
-        r = s.put("%s/%s" % (self.ghurl, ), data=json.dumps(data))
+    #    r = s.put("%s/%s" % (self.action_url, ), data=json.dumps(data))
         if results.status_code == 204:
             print("Updated.")
 
@@ -88,16 +95,17 @@ class WhitelistUpdater:
             print(results)
             if len(results) > 0:
                 self.logger.log.debug("Updated whitelist detected")
-
-                # get the new yaml file contents with a rawusercontent translation
-                # trigger self.update with the contents
-                self.logger.log.debug("Nothing doin!! got no code ;)")
+                self.s.get(self.raw)
+                # TODO trigger self.update with contents
+                wlist = self.s.get(self.raw_url)
+                print(wlist)
+                self.logger.log.debug(f"{wlist}")
         else:
              self.logger.log.info("Heartbeat Signal Detected")
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--config", help="Configuration file", default="config.yml")
+    parser.add_argument("-c", "--config", help="Configuration file", default="gha-whitelist-manager.yml")
     args = parser.parse_args()
     setattr(args, "uri", "orgs/asf-transfer/actions/permissions/selected-actions")
     return args
