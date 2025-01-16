@@ -11,7 +11,7 @@ import json
 import smtplib
 
 ORG = "apache"
-PUBLIC_INTERFACE = "infrastructure-gha-whitelist-manager"
+PUBLIC_INTERFACE = "infrastructure-gha-allowlist-manager"
 APPROVED_PATTERNS_FILEPATH = "approved_patterns.yml"
 
 github_timewait = 60
@@ -48,7 +48,7 @@ class Log:
 
 
 class WhitelistUpdater:
-    """ Scans pubsub for changes to a defined whitelist, and Handles the API requests to GitHub """
+    """ Scans pubsub for changes to a defined allowlist, and Handles the API requests to GitHub """
     def __init__(self, config):
         self.config = config
         self.action_url = f"https://api.github.com/orgs/{ORG}/actions/permissions/selected-actions"
@@ -77,11 +77,11 @@ class WhitelistUpdater:
         asfpy.pubsub.listen_forever(self.handler, self.pubsub, raw=True)
     
     def update(self, wlist):
-        """Update the GitHub actions whitelist for the org"""
+        """Update the GitHub actions allowlist for the org"""
         data = {
-            "github_owned_whiteed": True,
-            "verified_whiteed": False,
-            "patterns_whiteed": wlist,
+            "github_owned_allowed": True,
+            "verified_allowed": False,
+            "patterns_allowed": wlist,
         }
     #    r = s.put("%s/%s" % (self.action_url, ), data=json.dumps(data))
         if results.status_code == 204:
@@ -93,7 +93,7 @@ class WhitelistUpdater:
             p = re.compile(r"^{}$".format(APPROVED_PATTERNS_FILEPATH))
             results = [w for w in data["commit"].get("files", []) if p.match(w)]
             if len(results) > 0:
-                self.logger.log.debug("Updated whitelist detected")
+                self.logger.log.debug("Updated allowlist detected")
                 wlist = yaml.safe_load(self.s.get(self.raw_url).content.decode('utf-8'))
                 print(wlist)
                 # TODO trigger self.update with contents
@@ -102,7 +102,7 @@ class WhitelistUpdater:
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--config", help="Configuration file", default="gha-whitelist-manager.yml")
+    parser.add_argument("-c", "--config", help="Configuration file", default="gha-allowlist-manager.yml")
     args = parser.parse_args()
     setattr(args, "uri", "orgs/asf-transfer/actions/permissions/selected-actions")
     return args
