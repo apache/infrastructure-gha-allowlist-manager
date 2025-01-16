@@ -52,7 +52,7 @@ class WhitelistUpdater:
     def __init__(self, config):
         self.config = config
         self.action_url = f"https://api.github.com/orgs/{ORG}/actions/permissions/selected-actions"
-        self.raw_url = f"https://rawusercontent.github.com/{ORG}/{PUBLIC_INTERFACE}/refs/heads/main/{APPROVED_PATTERNS_FILEPATH}"
+        self.raw_url = f"https://raw.githubusercontent.com/{ORG}/{PUBLIC_INTERFACE}/refs/heads/main/{APPROVED_PATTERNS_FILEPATH}"
         self.s = requests.Session()
 
         # Fetch the mail map
@@ -79,9 +79,9 @@ class WhitelistUpdater:
     def update(self, wlist):
         """Update the GitHub actions whitelist for the org"""
         data = {
-            "github_owned_allowed": True,
-            "verified_allowed": False,
-            "patterns_allowed": wlist,
+            "github_owned_whiteed": True,
+            "verified_whiteed": False,
+            "patterns_whiteed": wlist,
         }
     #    r = s.put("%s/%s" % (self.action_url, ), data=json.dumps(data))
         if results.status_code == 204:
@@ -90,16 +90,13 @@ class WhitelistUpdater:
     def handler(self, data):
         if "commit" in data and data["commit"]["project"] == PUBLIC_INTERFACE:
             # Check if modified files are in path
-            p = re.compile(r"^{APPROVED_PATTERNS_FILEPATH}$")
+            p = re.compile(r"^{}$".format(APPROVED_PATTERNS_FILEPATH))
             results = [w for w in data["commit"].get("files", []) if p.match(w)]
-            print(results)
             if len(results) > 0:
                 self.logger.log.debug("Updated whitelist detected")
-                self.s.get(self.raw)
-                # TODO trigger self.update with contents
-                wlist = self.s.get(self.raw_url)
+                wlist = yaml.safe_load(self.s.get(self.raw_url).content.decode('utf-8'))
                 print(wlist)
-                self.logger.log.debug(f"{wlist}")
+                # TODO trigger self.update with contents
         else:
              self.logger.log.info("Heartbeat Signal Detected")
 
