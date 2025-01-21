@@ -7,8 +7,11 @@ import sys
 import re
 import logging
 
-GITHUB_TOKEN = os.environ['dfoulks1']
+GITHUB_TOKEN = os.environ["dfoulks1"]
+DOCKERHUB_TOKEN = os.environ["dh_dfoulks"]
 DEFAULT_EXPIRATION_DATE = "2050-01-01"
+OUTPUT_LEVEL = 3  # 1-5, see Log.verbosity
+
 
 class Log:
     def __init__(self, config):
@@ -44,16 +47,17 @@ class Log:
 class Converter:
     # Handles Converting the allowed_patterns list to an actions.yml that can be consumed by our workflow
     def __init__(self):
-        self.ghurl = "https://api.github.com"
-        self.s = requests.Session()
-        self.mail_map = {}
-        self.logger = Log({
-            "logfile": "stdout",
-            "verbosity": 5,
+        self.allowlist = {}
+        self.logger = Log(
+            {
+                "logfile": "stdout",
+                "verbosity": OUTPUT_LEVEL,
             }
         )
-        self.allowlist = {}
-        self.s.headers.update(
+
+        # GitHub Session Handler
+        self.gh = requests.Session()
+        self.gh.headers.update(
             {
                 "Accept": "application/vnd.github+json",
                 "Authorization": f"Bearer {GITHUB_TOKEN}",
@@ -61,106 +65,190 @@ class Converter:
             }
         )
 
+        # DockerHub Session Handler
+        self.dh = requests.Session()
+        self.dh.headers.update(
+            {
+                "Authorization": f"Bearer {DOCKERHUB_TOKEN}",
+                "Accept": "application/json",
+            }
+        )
+
     def gh_fetch(self, uri):
         self.logger.log.debug(f"Fetching {uri}...")
         try:
-            data = self.s.get(uri).content.decode("utf-8")
+            data = self.gh.get(uri)
             data.raise_for_status()
 
         except:
-            self.logger.log.debug(f"{uri} Returned 404!")
+            self.logger.log.error(f"{uri} Returned 404!")
             return None
 
-        if data.status == "404":
-            self.logger.log.debug(f"{uri} Returned 404!")
-            return None
+        data = yaml.safe_load(data.content.decode("utf-8"))
+        if isinstance(data, list):
+            return data
         else:
-           return(data.content.decode("utf-8"))
+            print(data["status"])
 
-    def build_action(self, action, tag):
+    def dh_fetch(self, uri):
+        self.logger.log.debug(f"Fetching {uri}...")
+        try:
+            data = self.dh.get(uri)
+            data.raise_for_status()
+        except:
+            self.logger.log.error(f"{uri} Failed!!!")
+            return None
+
+        data = yaml.safe_load(data.content.decode("utf-8"))["results"]
+        if isinstance(data, list):
+            return data
+        else:
+            print(data)
+
+    def build_dh_action(self, action, tag):
+        self.logger.log.info(f"Fetching tags for Dockerhub://{action}")
+        dh_uri = f"https://registry.hub.docker.com/v2/repositories/"
+        tags = self.dh_fetch(f"{dh_uri}/{action}/tags/?page_size=100")
+        t = {}
+        if "*" in tag:
+            # set to the newest tagged image
+            self.logger.log.info("Pinning DockerHub Image to newest Tagged Image")
+            sha = max(tags, key=lambda x: x["name"])["digest"]
+        else:
+            self.logger.log.info(f"Ensuring {tag} is a valid tag")
+            tl = [t["sha"] for t in tags if t["name"] == tag]
+            if len(tl) == 0:
+                sha = None
+                self.logger.log.error(
+                    f"Tag: {tag} is not found in {action} tags! Skipping..."
+                )
+            else:
+                sha = tl[0]
+
+        if sha:
+            t[sha] = {"expires_at": f"{DEFAULT_EXPIRATION_DATE}"}
+        else:
+            return None
+
+        return t
+
+    def build_gh_action(self, action, tag):
         self.logger.log.info(f"Fetching Details on {action}")
-        
+
         gh_uri = f"https://api.github.com/repos/{action}"
         tags = self.gh_fetch(f"{gh_uri}/git/refs/tags")
-        heads =self.gh_fetch(f"{gh_uri}/refs/heads")
-        
+        heads = self.gh_fetch(f"{gh_uri}/git/refs/heads")
+
         if tags and heads:
             t = {}
-            self.logger.log.info(f"Parsing tag: {tag}")
-            print(tags)
+            self.logger.log.info(f"Parsing: {action}@{tag}")
             if "*" in tag:
                 # if globbed, set to hash of HEAD.
                 # LPT: GitHub SHAs are directly comparable!
                 self.logger.log.info("Pinning to the SHA of the current HEAD")
-                sha = max(tags, key=lambda x: x['ref'])['object']['sha']
+                sha = max(tags, key=lambda x: x["ref"])["object"]["sha"]
 
             elif tag == "latest":
                 # set to the hash of 'refs/heads/latest'
                 self.logger.log.info("Pinning to the SHA of refs/heads/latest")
-                sha = [ item for item in headdata if headdata['ref'] == "refs/heads/latest" ][0]['object']['ref']
+                sha = [item for item in heads if item["ref"] == "refs/heads/latest"][0][
+                    "object"
+                ]["sha"]
 
             elif len(tag) == 40:
                 # Lets pretend for now that any 40 character string is a SHA
                 # TODO Validate that the 40 character string is a valid SHA
-                self.logger.log.alert("Pretending that any 40 character string is a SHA...")
+                self.logger.log.critical(
+                    "Pretending that any 40 character string is a SHA..."
+                )
                 sha = tag
 
             else:
                 # Check if the provided tag is valid, if so use it.
                 self.logger.log.info(f"Pinning to the SHA of refs/heads/{tag}")
-                sha = next(( item['object']['sha'] for item in dset if item['ref'] == f"refs/tags/{tag}"), None)
+                sha = next(
+                    (
+                        item["object"]["sha"]
+                        for item in tags
+                        if item["ref"] == f"refs/tags/{tag}"
+                    ),
+                    None,
+                )
                 if sha is None:
-                    self.logger.log.error(f"Not found: https://github.com/{action}/tree/{tag}")
-                    return
+                    self.logger.log.error(
+                        f"Tag: {tag} not found in https://api.github.com/repos/{action}/git/refs/tags"
+                    )
+                    self.logger.log.error(f"Skipping {action}@{tag}")
+                    return None
 
             # Expiration Date set as a GLOBAL
-            t[sha] = { "expires_at": "{DEFAULT_EXPIRATION_DATE}" }
-            
-            return(t)
-                    
+            t[sha] = {"expires_at": f"{DEFAULT_EXPIRATION_DATE}"}
+
+            return t
+
     def parse_approved_patterns(self, file):
         allowlist = {}
         allowed = yaml.safe_load(file)
         for ap in allowed:
             # Do some work to make sure that the names are right first, _then_ parse the tags
-            a = ap.split('/')
-            if len(a) == 2:
-                org = a[0]
-                repo = a[1]
-            elif len(a) == 1:
-                print(a)
-            elif len(a) >= 3:
-                # Handle Docker
-                if a[0] == "docker:":
-                    self.logger.log.alert("Skipping Docker entries for now")
-                    self.logger.log.alert(f"  -> {'/'.join(a)}")
-                # Eveything else can just be [0:2]
-                else:
+            a = ap.split("/")
+
+            # Parse Docker things first
+            if a[0] == "docker:":
+                # action = self.build_dh_action(ap)
+                self.logger.log.critical("Parsing DockerHub entry")
+                dkey, image, tag = ap.split(":")
+                act = image.lstrip("//")
+                action = self.build_dh_action(act, tag)
+
+                # reset the action name to include the docker key `docker://`
+                act = "//".join([dkey, act])
+
+            # If it's not Docker it's GitHub
+            else:
+                # %s/%s
+                if len(a) == 2:
+                    org = a[0]
+                    if a[1] != "*":
+                        repo = a[1]
+                    else:
+                        self.logger.log.critical(
+                            f"Invalid Entry (No repo provided): {ap}"
+                        )
+                        continue
+                # %s, should not happen
+                elif len(a) == 1:
+                    print(a)
+
+                # %s/%s/%s trunc'd to %s/%s
+                elif len(a) >= 3:
                     org = a[0]
                     repo = a[1]
 
-            # Action is set for everything but Docker things, which were skipped for now
-            act = f"{org}/{repo}"
+                act = f"{org}/{repo}"
 
-            if '@' in act:
-                act, tag = act.split('@')
-            else:
-                # In this case * is equivalent to HEAD of the default branch
-                tag = "*"
-                
-            action = self.build_action(act, tag)
-            # Update the allowlist
-            if act in self.allowlist:
-                allowlist[act].update(action)
-            else:
-                allowlist[act] = action
+                if "@" in act:
+                    act, tag = act.split("@")
+                else:
+                    # In this case * is equivalent to HEAD of the default branch
+                    tag = "*"
+
+                action = self.build_gh_action(act, tag)
+
+            if action:
+                # Update the allowlist
+                if act in self.allowlist:
+                    allowlist[act].update(action)
+                else:
+                    allowlist[act] = action
+
+        return allowlist
+
 
 if __name__ == "__main__":
     c = Converter()
-    converted = c.parse_approved_patterns(open('approved_patterns.yml'))
-    yaml.dump(converted, open('actions.yaml', 'w+'), default_flow_style=False)
-
-
-
-
-
+    c.logger.log.info("Parsing {FILENAME}")
+    converted = c.parse_approved_patterns(open("approved_patterns.yml"))
+    c.logger.log.info("Printing Generated actions.yml to file")
+    yaml.dump(converted, open("actions.yaml", "w+"), default_flow_style=False)
+    c.logger.log.info("Done!")
