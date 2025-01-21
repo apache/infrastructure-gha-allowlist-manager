@@ -6,12 +6,17 @@ import requests
 import sys
 import re
 import logging
+import argparse
 
-GITHUB_TOKEN = os.environ["dfoulks1"]
-DOCKERHUB_TOKEN = os.environ["dh_dfoulks"]
-DEFAULT_EXPIRATION_DATE = "2050-01-01"
-OUTPUT_LEVEL = 3  # 1-5, see Log.verbosity
+DEFAULT_EXPIRATION_DATE = 2050-01-01
 
+def get_args():
+    parser = argparse.ArgumentParser("GitHub Actions Approved Patterns Converter")
+    parser.add_argument('--ghtoken', required=True, help="GitHub Token")
+    parser.add_argument('--dhtoken', required=True, help="DockerHub Token")
+    parser.add_argument('-v','--verbose', action='count', default=0, help="Verbosity")
+    args = parser.parse_args()
+    return args
 
 class Log:
     def __init__(self, config):
@@ -46,12 +51,12 @@ class Log:
 
 class Converter:
     # Handles Converting the allowed_patterns list to an actions.yml that can be consumed by our workflow
-    def __init__(self):
+    def __init__(self, args):
         self.allowlist = {}
         self.logger = Log(
             {
                 "logfile": "stdout",
-                "verbosity": OUTPUT_LEVEL,
+                "verbosity": args.verbose,
             }
         )
 
@@ -60,7 +65,7 @@ class Converter:
         self.gh.headers.update(
             {
                 "Accept": "application/vnd.github+json",
-                "Authorization": f"Bearer {GITHUB_TOKEN}",
+                "Authorization": f"Bearer {args.ghtoken}",
                 "X-GitHub-Api-Version": "2022-11-28",
             }
         )
@@ -69,7 +74,7 @@ class Converter:
         self.dh = requests.Session()
         self.dh.headers.update(
             {
-                "Authorization": f"Bearer {DOCKERHUB_TOKEN}",
+                "Authorization": f"Bearer {args.dhtoken}",
                 "Accept": "application/json",
             }
         )
@@ -246,7 +251,8 @@ class Converter:
 
 
 if __name__ == "__main__":
-    c = Converter()
+    args = get_args()
+    c = Converter(args)
     c.logger.log.info("Parsing {FILENAME}")
     converted = c.parse_approved_patterns(open("approved_patterns.yml"))
     c.logger.log.info("Printing Generated actions.yml to file")
