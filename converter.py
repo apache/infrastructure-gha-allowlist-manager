@@ -207,7 +207,7 @@ class Converter:
                 action = self.build_dh_action(act, tag)
 
                 # reset the action name to include the docker key `docker://`
-                act = "//".join([dkey, act])
+                act = "://".join([dkey, act])
 
             # If it's not Docker it's GitHub
             else:
