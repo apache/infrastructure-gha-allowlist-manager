@@ -8,7 +8,7 @@ import re
 import logging
 import argparse
 
-DEFAULT_EXPIRATION_DATE = 2050-01-01
+DEFAULT_EXPIRATION_DATE = '2050-01-01'
 
 def get_args():
     parser = argparse.ArgumentParser("GitHub Actions Approved Patterns Converter")
@@ -145,14 +145,16 @@ class Converter:
         heads = self.gh_fetch(f"{gh_uri}/git/refs/heads")
 
         if tags and heads:
+            nick = None
             t = {}
             self.logger.log.info(f"Parsing: {action}@{tag}")
             if "*" in tag:
+                # We need to keep the globs, don't set to HEAD
                 # if globbed, set to hash of HEAD.
-                # LPT: GitHub SHAs are directly comparable!
-                self.logger.log.info("Pinning to the SHA of the current HEAD")
-                sha = max(tags, key=lambda x: x["ref"])["object"]["sha"]
-
+                # self.logger.log.info("Pinning to the SHA of the current HEAD")
+                self.logger.log.info("Keeping globs around for now...")
+                #sha = max(tags, key=lambda x: x["ref"])["object"]["sha"]
+                sha = "*"
             elif tag == "latest":
                 # set to the hash of 'refs/heads/latest'
                 self.logger.log.info("Pinning to the SHA of refs/heads/latest")
@@ -170,6 +172,7 @@ class Converter:
 
             else:
                 # Check if the provided tag is valid, if so use it.
+                nick = tag
                 self.logger.log.info(f"Pinning to the SHA of refs/heads/{tag}")
                 sha = next(
                     (
@@ -188,6 +191,17 @@ class Converter:
 
             # Expiration Date set as a GLOBAL
             t[sha] = {"expires_at": f"{DEFAULT_EXPIRATION_DATE}"}
+            
+            # TODO Don't keep globs
+            # Keep the globs for 6 months
+            if sha == "*":
+                t[sha]["keep"] = True
+                t[sha]["expires_at"] = "2025-08-01"
+
+            # TODO Don't keep tags
+            # Keep tags as nicknames for their associated version for 6 months
+            if nick:
+                t[nick] = {"expires_at": "2025-08-01"}
 
             return t
 
