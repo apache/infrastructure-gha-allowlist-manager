@@ -47,7 +47,7 @@ class Log:
             )
 
 
-class WhitelistUpdater:
+class AllowlistUpdater:
     """ Scans pubsub for changes to a defined allowlist, and Handles the API requests to GitHub """
     def __init__(self, config):
         self.config = config
@@ -110,5 +110,5 @@ def get_args():
 if __name__ == "__main__":
     args = get_args()
     config = yaml.safe_load(open(args.config, "r").read())
-    w = WhitelistUpdater(config)
+    w = AllowlistUpdater(config)
     w.scan()
