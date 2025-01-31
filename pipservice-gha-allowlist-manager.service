@@ -4,8 +4,8 @@ Description=ASF GitHub Actions workflow scanner
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/gha-allowlist-updater/
-ExecStart=/usr/local/bin/pipenv run python3 gha-allowlist-updater.py 
+WorkingDirectory=/opt/gha-allowlist-manager/
+ExecStart=/usr/local/bin/pipenv run python3 gha-allowlist-manager.py 
 Restart=always
 User=www-data
 Group=www-data
