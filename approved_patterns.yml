@@ -101,8 +101,6 @@
 - codelytv/pr-size-labeler@v1*
 - crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549
 - 1Password/load-secrets-action@*
-- tj-actions/glob@*
-- tj-actions/json2file@*
 - korandoru/setup-zig@v1
 - mozilla-actions/sccache-action@v0.0.3
 - seanmiddleditch/gha-setup-ninja@v3
@@ -146,7 +144,6 @@
 - ncipollo/release-action@1e3e9c6637e5566e185b7ab66f187539c5a76da7
 - actions-cool/maintain-one-comment@*
 - dorny/paths-filter@v3
-- tj-actions/changed-files@v43.0.0
 - pdm-project/setup-pdm@v4
 - geekyeggo/delete-artifact@v5
 - actions/setup-go@v5
