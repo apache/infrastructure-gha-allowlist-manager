@@ -51,11 +51,13 @@ class AllowlistUpdater:
     """ Scans pubsub for changes to a defined allowlist, and Handles the API requests to GitHub """
     def __init__(self, config):
         self.config = config
+        self.logger = Log(config)
         self.action_url = f"https://api.github.com/orgs/{ORG}/actions/permissions/selected-actions"
         self.raw_url = f"https://raw.githubusercontent.com/{ORG}/{PUBLIC_INTERFACE}/refs/heads/main/{APPROVED_PATTERNS_FILEPATH}"
         self.s = requests.Session()
 
         # Fetch the mail map
+        self.logger.log.info("Building mail alias map")
         self.mail_map = {} 
         raw_map = self.s.get("https://whimsy.apache.org/public/committee-info.json").json()['committees']
         [ self.mail_map.update({ item: raw_map[item]['mail_list']}) for item in raw_map ]
@@ -70,7 +72,6 @@ class AllowlistUpdater:
         )
 
         self.pubsub = f"https://pubsub.apache.org:2070/git/{PUBLIC_INTERFACE}"
-        self.logger = Log(config)
 
     def scan(self):
         self.logger.log.info("Connecting to %s" % self.pubsub)
@@ -98,16 +99,15 @@ class AllowlistUpdater:
             if len(results) > 0:
                 self.logger.log.debug("Updated allowlist detected")
                 wlist = yaml.safe_load(self.s.get(self.raw_url).content.decode('utf-8'))
-                print(wlist)
-                # TODO trigger self.update with contents
+                self.update(wlist)
         else:
              self.logger.log.info("Heartbeat Signal Detected")
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--config", help="Configuration file", default="gha-allowlist-manager.yml")
+    parser.add_argument("-c", "--config", help="Configuration file", default="gha-allowlist-manager.yaml")
     args = parser.parse_args()
-    setattr(args, "uri", "orgs/asf-transfer/actions/permissions/selected-actions")
+    setattr(args, "uri", "orgs/apache/actions/permissions/selected-actions")
     return args
 
 if __name__ == "__main__":
