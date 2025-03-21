@@ -83,9 +83,12 @@ class AllowlistUpdater:
             "verified_allowed": False,
             "patterns_allowed": wlist,
         }
-    #    r = s.put("%s/%s" % (self.action_url, ), data=json.dumps(data))
+        r = s.put("%s/%s" % (self.action_url, ), data=json.dumps(data))
         if results.status_code == 204:
-            print("Updated.")
+            self.logger.log.info("Updated the global approved patterns list.")
+        else:
+            self.logger.log.error("There was a failure to update the GH Org")
+
 
     def handler(self, data):
         if "commit" in data and data["commit"]["project"] == PUBLIC_INTERFACE:
