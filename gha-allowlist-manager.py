@@ -117,8 +117,9 @@ if __name__ == "__main__":
     config = yaml.safe_load(open(args.config, "r").read())
     w = AllowlistUpdater(config)
     if args.force_update:
-        print("Rescanning")
+        w.logger.log.info(f"Fetching approved patterns from: {PUBLIC_INTERFACE}/{APPROVED_PATTERNS_FILEPATH} ")
         wlist = yaml.safe_load(w.s.get(w.raw_url).content.decode('utf-8'))
+        w.logger.log.debug(wlist)
         w.update(wlist)
     else:
         w.scan()

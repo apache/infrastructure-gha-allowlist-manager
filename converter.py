@@ -7,13 +7,15 @@ import sys
 import re
 import logging
 import argparse
+import datetime
 
-DEFAULT_EXPIRATION_DATE = 2050-01-01
+DEFAULT_EXPIRATION_DATE = datetime.datetime(2050, 1, 1).date()
 
 def get_args():
     parser = argparse.ArgumentParser("GitHub Actions Approved Patterns Converter")
     parser.add_argument('--ghtoken', required=True, help="GitHub Token")
     parser.add_argument('--dhtoken', required=True, help="DockerHub Token")
+    parser.add_argument('-f', '--filename', default="approved_patterns.yml", help="DockerHub Token")
     parser.add_argument('-v','--verbose', action='count', default=0, help="Verbosity")
     args = parser.parse_args()
     return args
@@ -132,7 +134,7 @@ class Converter:
                 sha = tl[0]
 
         if sha:
-            t[sha] = {"expires_at": f"{DEFAULT_EXPIRATION_DATE}"}
+            t[sha] = {"expires_at": DEFAULT_EXPIRATION_DATE}
         else:
             return None
 
@@ -269,7 +271,9 @@ if __name__ == "__main__":
     args = get_args()
     c = Converter(args)
     c.logger.log.info("Parsing {FILENAME}")
-    converted = c.parse_approved_patterns(open("approved_patterns.yml"))
+    converted = c.parse_approved_patterns(open(args.filename))
     c.logger.log.info("Printing Generated actions.yml to file")
-    yaml.dump(converted, open("actions.yaml", "w+"), default_flow_style=False)
+    with open("actions.yaml", "w+") as f:
+        yaml.safe_dump(converted, f, default_flow_style=False)
+        f.close()
     c.logger.log.info("Done!")
