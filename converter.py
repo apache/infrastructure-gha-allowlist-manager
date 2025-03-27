@@ -8,7 +8,7 @@ import re
 import logging
 import argparse
 
-DEFAULT_EXPIRATION_DATE = '2050-01-01'
+DEFAULT_EXPIRATION_DATE = 2050-01-01
 
 def get_args():
     parser = argparse.ArgumentParser("GitHub Actions Approved Patterns Converter")
@@ -83,6 +83,7 @@ class Converter:
         self.logger.log.debug(f"Fetching {uri}...")
         try:
             data = self.gh.get(uri)
+            self.logger.log.debug(data)
             data.raise_for_status()
 
         except:

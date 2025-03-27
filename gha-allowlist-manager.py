@@ -11,7 +11,7 @@ import json
 import smtplib
 
 ORG = "apache"
-PUBLIC_INTERFACE = "infrastructure-gha-allowlist-manager"
+PUBLIC_INTERFACE = "infrastructure-actions"
 APPROVED_PATTERNS_FILEPATH = "approved_patterns.yml"
 
 github_timewait = 60
@@ -85,9 +85,10 @@ class AllowlistUpdater:
             "patterns_allowed": wlist,
         }
         r = s.put("%s/%s" % (self.action_url, ), data=json.dumps(data))
-        if results.status_code == 204:
+        if r.status_code == 204:
             self.logger.log.info("Updated the global approved patterns list.")
         else:
+            self.logger.log.error(f"Request returned: {r.status_code}")
             self.logger.log.error("There was a failure to update the GH Org")
 
 
@@ -106,6 +107,7 @@ class AllowlistUpdater:
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config", help="Configuration file", default="gha-allowlist-manager.yaml")
+    parser.add_argument("--force-update", help="Configuration file", action="store_true", default="False")
     args = parser.parse_args()
     setattr(args, "uri", "orgs/apache/actions/permissions/selected-actions")
     return args
@@ -114,4 +116,9 @@ if __name__ == "__main__":
     args = get_args()
     config = yaml.safe_load(open(args.config, "r").read())
     w = AllowlistUpdater(config)
-    w.scan()
+    if args.force_update:
+        print("Rescanning")
+        wlist = yaml.safe_load(w.s.get(w.raw_url).content.decode('utf-8'))
+        w.update(wlist)
+    else:
+        w.scan()
