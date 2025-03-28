@@ -90,7 +90,7 @@ class AllowlistUpdater:
             "verified_allowed": False,
             "patterns_allowed": wlist,
         }
-        r = self.s.put("%s/%s" % (self.action_url,), data=json.dumps(data))
+        r = self.s.put(f"{self.action_url}", data=json.dumps(data))
         if r.status_code == 204:
             self.logger.log.info("Updated the global approved patterns list.")
         else:
