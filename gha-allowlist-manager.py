@@ -85,6 +85,7 @@ class AllowlistUpdater:
 
     def update(self, wlist):
         """Update the GitHub actions allowlist for the org"""
+        self.logger.log.debug(wlist)
         data = {
             "github_owned_allowed": True,
             "verified_allowed": False,
@@ -138,7 +139,6 @@ if __name__ == "__main__":
             f"Fetching approved patterns from: {PUBLIC_INTERFACE}/{APPROVED_PATTERNS_FILEPATH} "
         )
         wlist = yaml.safe_load(w.s.get(w.raw_url).content.decode("utf-8"))
-        w.logger.log.debug(wlist)
         w.update(wlist)
     else:
         w.scan()
