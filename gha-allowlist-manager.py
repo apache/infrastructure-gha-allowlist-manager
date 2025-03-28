@@ -133,7 +133,7 @@ if __name__ == "__main__":
     args = get_args()
     config = yaml.safe_load(open(args.config, "r").read())
     w = AllowlistUpdater(config)
-    if args.force_update:
+    if args.force_update is True:
         w.logger.log.info(
             f"Fetching approved patterns from: {PUBLIC_INTERFACE}/{APPROVED_PATTERNS_FILEPATH} "
         )
