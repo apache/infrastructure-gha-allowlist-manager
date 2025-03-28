@@ -152,12 +152,16 @@ class Converter:
             t = {}
             self.logger.log.info(f"Parsing: {action}@{tag}")
             if "*" in tag:
+                if len(tag.split()) > 1:
+                    self.logger.log.info("Keeping globs around for now...")
+                    sha = tag
                 # We need to keep the globs, don't set to HEAD
-                # if globbed, set to hash of HEAD.
-                # self.logger.log.info("Pinning to the SHA of the current HEAD")
-                self.logger.log.info("Keeping globs around for now...")
-                #sha = max(tags, key=lambda x: x["ref"])["object"]["sha"]
-                sha = "*"
+                else:
+                    # if globbed, set to hash of HEAD.
+                    # self.logger.log.info("Pinning to the SHA of the current HEAD")
+                    self.logger.log.info("Keeping globs around for now...")
+                    #sha = max(tags, key=lambda x: x["ref"])["object"]["sha"]
+                    sha = "*"
             elif tag == "latest":
                 # set to the hash of 'refs/heads/latest'
                 self.logger.log.info("Pinning to the SHA of refs/heads/latest")
@@ -199,12 +203,12 @@ class Converter:
             # Keep the globs for 6 months
             if sha == "*":
                 t[sha]["keep"] = True
-                t[sha]["expires_at"] = "2025-08-01"
+                t[sha]["expires_at"] = DEFAULT_EXPIRATION_DATE
 
             # TODO Don't keep tags
             # Keep tags as nicknames for their associated version for 6 months
             if nick:
-                t[nick] = {"expires_at": "2025-08-01"}
+                t[nick] = {"expires_at": DEFAULT_EXPIRATION_DATE}
 
             return t
 
