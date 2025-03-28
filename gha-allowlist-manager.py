@@ -88,7 +88,7 @@ class AllowlistUpdater:
         self.logger.log.debug(wlist)
         data = {
             "github_owned_allowed": True,
-            "verified_allowed": False,
+            "verified_allowed": True,
             "patterns_allowed": wlist,
         }
         r = self.s.put(f"{self.action_url}", data=json.dumps(data))
