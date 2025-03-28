@@ -16,6 +16,7 @@ APPROVED_PATTERNS_FILEPATH = "approved_patterns.yml"
 
 github_timewait = 60
 
+
 class Log:
     def __init__(self, config):
         self.config = config
@@ -48,20 +49,25 @@ class Log:
 
 
 class AllowlistUpdater:
-    """ Scans pubsub for changes to a defined allowlist, and Handles the API requests to GitHub """
+    """Scans pubsub for changes to a defined allowlist, and Handles the API requests to GitHub"""
+
     def __init__(self, config):
         self.config = config
         self.logger = Log(config)
-        self.action_url = f"https://api.github.com/orgs/{ORG}/actions/permissions/selected-actions"
+        self.action_url = (
+            f"https://api.github.com/orgs/{ORG}/actions/permissions/selected-actions"
+        )
         self.raw_url = f"https://raw.githubusercontent.com/{ORG}/{PUBLIC_INTERFACE}/refs/heads/main/{APPROVED_PATTERNS_FILEPATH}"
         self.s = requests.Session()
 
         # Fetch the mail map
         self.logger.log.info("Building mail alias map")
-        self.mail_map = {} 
-        raw_map = self.s.get("https://whimsy.apache.org/public/committee-info.json").json()['committees']
-        [ self.mail_map.update({ item: raw_map[item]['mail_list']}) for item in raw_map ]
-        
+        self.mail_map = {}
+        raw_map = self.s.get(
+            "https://whimsy.apache.org/public/committee-info.json"
+        ).json()["committees"]
+        [self.mail_map.update({item: raw_map[item]["mail_list"]}) for item in raw_map]
+
         # Add the GitHub Headers
         self.s.headers.update(
             {
@@ -76,7 +82,7 @@ class AllowlistUpdater:
     def scan(self):
         self.logger.log.info("Connecting to %s" % self.pubsub)
         asfpy.pubsub.listen_forever(self.handler, self.pubsub, raw=True)
-    
+
     def update(self, wlist):
         """Update the GitHub actions allowlist for the org"""
         data = {
@@ -84,13 +90,12 @@ class AllowlistUpdater:
             "verified_allowed": False,
             "patterns_allowed": wlist,
         }
-        r = s.put("%s/%s" % (self.action_url, ), data=json.dumps(data))
+        r = self.s.put("%s/%s" % (self.action_url,), data=json.dumps(data))
         if r.status_code == 204:
             self.logger.log.info("Updated the global approved patterns list.")
         else:
             self.logger.log.error(f"Request returned: {r.status_code}")
             self.logger.log.error("There was a failure to update the GH Org")
-
 
     def handler(self, data):
         if "commit" in data and data["commit"]["project"] == PUBLIC_INTERFACE:
@@ -99,26 +104,40 @@ class AllowlistUpdater:
             results = [w for w in data["commit"].get("files", []) if p.match(w)]
             if len(results) > 0:
                 self.logger.log.debug("Updated allowlist detected")
-                wlist = yaml.safe_load(self.s.get(self.raw_url).content.decode('utf-8'))
+                wlist = yaml.safe_load(self.s.get(self.raw_url).content.decode("utf-8"))
                 self.update(wlist)
         else:
-             self.logger.log.info("Heartbeat Signal Detected")
+            self.logger.log.info("Heartbeat Signal Detected")
+
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--config", help="Configuration file", default="gha-allowlist-manager.yaml")
-    parser.add_argument("--force-update", help="Configuration file", action="store_true", default="False")
+    parser.add_argument(
+        "-c",
+        "--config",
+        help="Configuration file",
+        default="gha-allowlist-manager.yaml",
+    )
+    parser.add_argument(
+        "--force-update",
+        help="Configuration file",
+        action="store_true",
+        default="False",
+    )
     args = parser.parse_args()
     setattr(args, "uri", "orgs/apache/actions/permissions/selected-actions")
     return args
+
 
 if __name__ == "__main__":
     args = get_args()
     config = yaml.safe_load(open(args.config, "r").read())
     w = AllowlistUpdater(config)
     if args.force_update:
-        w.logger.log.info(f"Fetching approved patterns from: {PUBLIC_INTERFACE}/{APPROVED_PATTERNS_FILEPATH} ")
-        wlist = yaml.safe_load(w.s.get(w.raw_url).content.decode('utf-8'))
+        w.logger.log.info(
+            f"Fetching approved patterns from: {PUBLIC_INTERFACE}/{APPROVED_PATTERNS_FILEPATH} "
+        )
+        wlist = yaml.safe_load(w.s.get(w.raw_url).content.decode("utf-8"))
         w.logger.log.debug(wlist)
         w.update(wlist)
     else:
