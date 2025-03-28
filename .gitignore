@@ -1,3 +1,4 @@
 Pipfile.lock
 *.log
 *.yml
+*.yaml
