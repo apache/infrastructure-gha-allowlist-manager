@@ -14,6 +14,9 @@ ORG = "apache"
 PUBLIC_INTERFACE = "infrastructure-actions"
 APPROVED_PATTERNS_FILEPATH = "approved_patterns.yml"
 
+GITHUB_OWNED_ALLOWED: True,
+VERIFIED_ALLOWED: True,
+
 github_timewait = 60
 
 
@@ -87,8 +90,8 @@ class AllowlistUpdater:
         """Update the GitHub actions allowlist for the org"""
         self.logger.log.debug(wlist)
         data = {
-            "github_owned_allowed": True,
-            "verified_allowed": True,
+            "github_owned_allowed": GITHUB_OWNED_ALLOWED,
+            "verified_allowed": VERIFIED_ALLOWED,
             "patterns_allowed": wlist,
         }
         r = self.s.put(f"{self.action_url}", data=json.dumps(data))
