@@ -14,8 +14,8 @@ ORG = "apache"
 PUBLIC_INTERFACE = "infrastructure-actions"
 APPROVED_PATTERNS_FILEPATH = "approved_patterns.yml"
 
-GITHUB_OWNED_ALLOWED: True
-VERIFIED_ALLOWED: True
+GITHUB_OWNED_ALLOWED = True
+VERIFIED_ALLOWED = True
 
 github_timewait = 60
 
