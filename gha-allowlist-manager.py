@@ -102,14 +102,17 @@ class AllowlistUpdater:
             self.logger.log.error("There was a failure to update the GH Org")
 
     def handler(self, data):
-        if "commit" in data and data["commit"]["project"] == PUBLIC_INTERFACE:
-            # Check if modified files are in path
-            p = re.compile(r"^{}$".format(APPROVED_PATTERNS_FILEPATH))
-            results = [w for w in data["commit"].get("files", []) if p.match(w)]
-            if len(results) > 0:
-                self.logger.log.debug("Updated allowlist detected")
-                wlist = yaml.safe_load(self.s.get(self.raw_url).content.decode("utf-8"))
-                self.update(wlist)
+        if "commit" in data:
+            self.logger.log.debug(data)
+            if data["commit"]["project"] == PUBLIC_INTERFACE:
+                # Check if modified files are in path
+#                p = re.compile(r"^{}$".format(APPROVED_PATTERNS_FILEPATH))
+#                results = [w for w in data["commit"].get("files", []) if w == APPROVED_PATTERNS_FILEPATH)]
+                if APPROVED_PATTERNS_FILEPATH in data["commit"].get("files", []):
+ #               if len(results) > 0
+                    self.logger.log.debug("Updated allowlist detected")
+                    wlist = yaml.safe_load(self.s.get(self.raw_url).content.decode("utf-8"))
+                    self.update(wlist)
         else:
             self.logger.log.info("Heartbeat Signal Detected")
 
