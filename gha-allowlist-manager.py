@@ -113,7 +113,7 @@ class AllowlistUpdater:
                     wlist = yaml.safe_load(self.s.get(self.raw_url).content.decode("utf-8"))
                     self.update(wlist)
         else:
-            self.logger.log.info("Heartbeat Signal Detected")
+            self.logger.log.debug("Heartbeat Signal Detected")
 
 
 def get_args():
