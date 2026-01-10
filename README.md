@@ -15,5 +15,5 @@ logfile: stdout
 gha_token: <TOKEN>
 ```
 
-For verbosity values please see the
+For verbosity values (0-5) please see the
 [verbosity table](https://github.com/apache/infrastructure-gha-allowlist-manager/blob/main/gha-allowlist-manager.py#L28-L33)
