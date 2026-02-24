@@ -1,4 +1,4 @@
-# GitHub Actions alowed patterns list
+# GitHub Actions allowed patterns list
 
 [approved_patterns.yml](https://github.com/apache/infrastructure-actions/tree/main/approved_patterns.yml) is a list of all of the allowed GitHub actions in our org.
 
